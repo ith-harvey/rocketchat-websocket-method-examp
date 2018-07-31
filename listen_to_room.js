@@ -1,70 +1,67 @@
+const {RBU} = require('hubot-doge-utility-functions')
+
 /**
- * Subscribes and listens to the Real Time stream of all messages happening in a Rocket.Chat Channel/Room
+ * Sets up websocket with rocket.chat server and runs "getUserRoles" method.
  *
- * Written by John Szaszvari <jszaszvari@gmail.com> 
- * Git Repo:  https://github.com/jszaszvari/rocketchat-ddp-listener 
- * 
+ * I modified the original version by John Szaszvari <jszaszvari@gmail.com>
+ * Git Repo:  https://github.com/jszaszvari/rocketchat-ddp-listener
+ *
  */
 
-//Fill out the 4 variables below
+//authToken that we got from the Rocket.Chat API (requires
+//process.env.ROCKETCHAT_PASSWORD, process.env.ROCKETCHAT_USER and process.env.ROCKETCHAT_URL to be set)
 
-//Address of the Rocket.Chat server you want to connect to
-var server = "chat.mydomain.com";
+RBU.getAuthToken().then(res => {
+  const authToken = res.data.authToken
 
-//Port of the Rocket.Chat server.
-var serverPort = 443;
+  console.log('authTOken ----->', authToken)
+  const DDP = require("ddp");
+  const login = require("ddp-login");
+  process.env.METEOR_TOKEN = authToken;
 
-//authToken that we got from the Rocket.Chat API
-var authToken = "my_auth_token";
+  const ddpClient = new DDP({
 
-//The _id of the channel or group you want to listen too. See the README 
-var subscribe = "group_or_channel_id";
+    // Address of the Rocket.Chat server you want to connect to
+    host: process.env.ROCKETCHAT_WEBSOC_URL,
 
-//End of user defined variables
+    // Port of the Rocket.Chat server.
+    port: process.env.ROCKETCHAT_WEBSOC_PORT,
 
-var DDP = require("ddp");
-var login = require("ddp-login");
-process.env.METEOR_TOKEN = authToken;
-
-var ddpClient = new DDP({
-  host: server,
-  port: serverPort, 
-  maintainCollections: true
-
-});
-
-ddpClient.connect(function(err) {
-  if (err) throw err;
-
-  login(ddpClient, {
-    env: "METEOR_TOKEN",
-    method: "token",
-    retry: 5
-  },
-
-  function(error, userInfo) {
-    if (error) {
-      // Something went wrong... 
-    } else {
-      // We are now logged in, with userInfo.token as our session auth token. 
-      token = userInfo.token;
-      console.log("Authentication Sucessful.\n");
-
-      // Subscribe to a message stream from a channel or group
-      console.log("Attempting to subscribe to the Group/Channel now.\n");
-      ddpClient.subscribe("stream-room-messages", [subscribe, false], function() {
-        console.log(ddpClient.collections);
-        console.log("Subscription Complete.\n");
-
-
-        // Display the stream on console so we can see its working
-        console.log("\nStarting live-stream of messages.:\n");
-        ddpClient.on("message", function(msg) {
-          console.log("Subscription Msg: " + msg);
-        });
-      }
-
-      );
-    }
+    // if server doesn't have ssl remove line below
+    ssl: true,
+    maintainCollections: true
   });
-});
+
+  ddpClient.connect(function(err) {
+    if (err) throw err;
+
+
+    login(ddpClient, {
+      env: "METEOR_TOKEN",
+      method: "token",
+      retry: 5
+
+    },
+
+
+
+      function(error, userInfo) {
+
+
+        if (error) {
+        // Something went wrong...
+      } else {
+        // We are now logged in, with userInfo.token as our session auth token.
+        token = userInfo.token;
+        console.log("Authentication Sucessful.\n");
+
+        // .call (methodName, params, callback)
+        ddpClient.call('getUserRoles', [], function(error, resp) {
+          console.log('here', error)
+          console.log('here', resp)
+        })
+        }
+      }
+    );
+  })
+})
